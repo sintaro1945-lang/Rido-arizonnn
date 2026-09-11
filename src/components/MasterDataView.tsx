@@ -247,19 +247,57 @@ export const MasterDataView: React.FC = () => {
 
       if (subTab === 'vessels') {
         endpoint = editingItem ? `/api/vessels/${editingItem.id}` : '/api/vessels';
-        payload = vesselForm;
+        payload = {
+          name: vesselForm.name.trim() || 'KM Samudera Nusantara Baru',
+          code: vesselForm.code.trim() || `IMO-${Math.floor(1000000 + Math.random() * 9000000)}`,
+          type: vesselForm.type || 'Kapal Kontainer',
+          capacity: Number(vesselForm.capacity || 1000),
+          capacityUnit: vesselForm.capacityUnit || 'TEU',
+          buildYear: Number(vesselForm.buildYear || 2021),
+          flag: vesselForm.flag || 'Indonesia',
+          status: vesselForm.status || 'Aktif',
+          currentLocation: vesselForm.currentLocation || 'Pelabuhan Tanjung Priok',
+          notes: vesselForm.notes || '',
+        };
       } else if (subTab === 'ports') {
         endpoint = editingItem ? `/api/ports/${editingItem.id}` : '/api/ports';
-        payload = portForm;
+        payload = {
+          code: portForm.code.trim().toUpperCase() || `PRT-${Math.floor(100 + Math.random() * 900)}`,
+          name: portForm.name.trim() || 'Pelabuhan Baru',
+          city: portForm.city.trim() || 'Kota Pelabuhan',
+          province: portForm.province.trim() || 'Provinsi',
+          country: portForm.country || 'Indonesia',
+        };
       } else if (subTab === 'routes') {
         endpoint = editingItem ? `/api/routes/${editingItem.id}` : '/api/routes';
-        payload = routeForm;
+        const defaultOrigin = ports[0]?.id || 1;
+        const defaultDest = ports[1]?.id || ports[0]?.id || 2;
+        payload = {
+          originPortId: Number(routeForm.originPortId || defaultOrigin),
+          destinationPortId: Number(routeForm.destinationPortId || defaultDest),
+          distanceNm: Number(routeForm.distanceNm || 450),
+          estDurationHours: Number(routeForm.estDurationHours || 28),
+          baseRatePerTeu: Number(routeForm.baseRatePerTeu || 5000000),
+        };
       } else if (subTab === 'cargo') {
         endpoint = editingItem ? `/api/cargo-categories/${editingItem.id}` : '/api/cargo-categories';
-        payload = cargoForm;
+        payload = {
+          code: cargoForm.code.trim().toUpperCase() || `CRG-${Math.floor(100 + Math.random() * 900)}`,
+          name: cargoForm.name.trim() || 'Kategori Kargo Baru',
+          categoryType: cargoForm.categoryType || 'General Cargo',
+          handlingFee: Number(cargoForm.handlingFee || 500000),
+          description: cargoForm.description || '',
+        };
       } else if (subTab === 'customers') {
         endpoint = editingItem ? `/api/customers/${editingItem.id}` : '/api/customers';
-        payload = customerForm;
+        payload = {
+          companyName: customerForm.companyName.trim() || 'PT Mitra Logistik Nusantara',
+          contactPerson: customerForm.contactPerson.trim() || 'Bapak Pimpinan',
+          phone: customerForm.phone.trim() || '+62 812-3456-7890',
+          email: customerForm.email.trim() || 'info@logistiknusantara.co.id',
+          address: customerForm.address.trim() || 'Jl. Pelabuhan Raya No. 1, Jakarta',
+          npwp: customerForm.npwp.trim() || '01.234.567.8-001.000',
+        };
       }
 
       const res = await fetch(endpoint, {
@@ -279,6 +317,7 @@ export const MasterDataView: React.FC = () => {
       setIsModalOpen(false);
       fetchData();
     } catch (err: any) {
+      console.error('Save master data error:', err);
       showToast(err.message || 'Gagal menyimpan data', 'error');
     }
   };
