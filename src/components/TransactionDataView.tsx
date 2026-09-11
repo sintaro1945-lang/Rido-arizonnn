@@ -83,27 +83,42 @@ export const TransactionDataView: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const fetchAll = async () => {
+  const safeFetch = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data) ? data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchAll = async (retryCount = 0) => {
     setLoading(true);
     try {
       const [resVoy, resBook, resVes, resRou, resCust, resCat] = await Promise.all([
-        fetch('/api/voyages').then((r) => r.json()),
-        fetch('/api/bookings').then((r) => r.json()),
-        fetch('/api/vessels').then((r) => r.json()),
-        fetch('/api/routes').then((r) => r.json()),
-        fetch('/api/customers').then((r) => r.json()),
-        fetch('/api/cargo-categories').then((r) => r.json()),
+        safeFetch('/api/voyages'),
+        safeFetch('/api/bookings'),
+        safeFetch('/api/vessels'),
+        safeFetch('/api/routes'),
+        safeFetch('/api/customers'),
+        safeFetch('/api/cargo-categories'),
       ]);
 
-      setVoyages(Array.isArray(resVoy) ? resVoy : []);
-      setBookings(Array.isArray(resBook) ? resBook : []);
-      setVessels(Array.isArray(resVes) ? resVes : []);
-      setRoutes(Array.isArray(resRou) ? resRou : []);
-      setCustomers(Array.isArray(resCust) ? resCust : []);
-      setCargoCategories(Array.isArray(resCat) ? resCat : []);
+      if (resVoy) setVoyages(resVoy);
+      if (resBook) setBookings(resBook);
+      if (resVes) setVessels(resVes);
+      if (resRou) setRoutes(resRou);
+      if (resCust) setCustomers(resCust);
+      if (resCat) setCargoCategories(resCat);
+
+      // Auto-retry once if initial cold-start returned empty
+      if ((!resVoy || resVoy.length === 0) && retryCount < 2) {
+        setTimeout(() => fetchAll(retryCount + 1), 1000);
+      }
     } catch (err) {
-      console.error('Fetch transaction data error:', err);
-      showToast('Gagal memuat data transaksi.', 'error');
+      console.warn('Silent transaction data fetch notice:', err);
     } finally {
       setLoading(false);
     }

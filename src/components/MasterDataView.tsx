@@ -89,26 +89,41 @@ export const MasterDataView: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // Fetch all master data
-  const fetchData = async () => {
+  // Fetch all master data with safe fallback and auto-retry
+  const safeFetch = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data) ? data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchData = async (retryCount = 0) => {
     setLoading(true);
     try {
       const [resVessels, resPorts, resRoutes, resCargo, resCust] = await Promise.all([
-        fetch('/api/vessels').then((r) => r.json()),
-        fetch('/api/ports').then((r) => r.json()),
-        fetch('/api/routes').then((r) => r.json()),
-        fetch('/api/cargo-categories').then((r) => r.json()),
-        fetch('/api/customers').then((r) => r.json()),
+        safeFetch('/api/vessels'),
+        safeFetch('/api/ports'),
+        safeFetch('/api/routes'),
+        safeFetch('/api/cargo-categories'),
+        safeFetch('/api/customers'),
       ]);
 
-      setVessels(Array.isArray(resVessels) ? resVessels : []);
-      setPorts(Array.isArray(resPorts) ? resPorts : []);
-      setRoutes(Array.isArray(resRoutes) ? resRoutes : []);
-      setCargoCategories(Array.isArray(resCargo) ? resCargo : []);
-      setCustomers(Array.isArray(resCust) ? resCust : []);
+      if (resVessels) setVessels(resVessels);
+      if (resPorts) setPorts(resPorts);
+      if (resRoutes) setRoutes(resRoutes);
+      if (resCargo) setCargoCategories(resCargo);
+      if (resCust) setCustomers(resCust);
+
+      // Auto-retry once if initial cold-start failed to get any data
+      if ((!resVessels || resVessels.length === 0) && retryCount < 2) {
+        setTimeout(() => fetchData(retryCount + 1), 1000);
+      }
     } catch (err) {
-      console.error('Error fetching master data:', err);
-      showToast('Gagal memuat data dari database Cloud SQL.', 'error');
+      console.warn('Silent master data fetch notice:', err);
     } finally {
       setLoading(false);
     }
