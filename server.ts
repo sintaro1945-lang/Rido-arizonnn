@@ -29,9 +29,42 @@ async function startServer() {
   // Run initial seed asynchronously
   seedDatabase().catch((err) => console.error('Database seed error:', err));
 
-  // Health check
-  app.get('/api/health', (req: Request, res: Response) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  // Health & Database Connection verification check
+  app.get('/api/health', async (req: Request, res: Response) => {
+    const start = Date.now();
+    try {
+      const dbCheck = await db.execute(sql`SELECT NOW() as db_time, current_database() as db_name, version() as pg_version`);
+      const latencyMs = Date.now() - start;
+
+      const vesselCount = await db.select({ count: sql<number>`count(*)` }).from(vessels);
+      const bookingCount = await db.select({ count: sql<number>`count(*)` }).from(cargoBookings);
+      const userCount = await db.select({ count: sql<number>`count(*)` }).from(users);
+
+      res.json({
+        status: 'ok',
+        database: {
+          connected: true,
+          engine: 'Cloud SQL (PostgreSQL)',
+          databaseName: dbCheck.rows[0]?.db_name,
+          dbTime: dbCheck.rows[0]?.db_time,
+          latencyMs,
+          totalUsers: Number(userCount[0]?.count || 0),
+          totalVessels: Number(vesselCount[0]?.count || 0),
+          totalBookings: Number(bookingCount[0]?.count || 0),
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error('Database connection check error:', err);
+      res.status(500).json({
+        status: 'error',
+        database: {
+          connected: false,
+          error: err.message || 'Gagal terhubung ke database Cloud SQL.',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   // ==========================================
